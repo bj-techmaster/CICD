@@ -1,0 +1,306 @@
+s3:Putobject
+
+codecommit:GitPush > Event Rule > Trigger the CodeBuild Project
+ref/heads/master
+
+Source   ->   CodeBuild Project(branch)
+github			buildspec.yml
+codecommit
+
+Some Test cases
+
+build one of the packages for any application (web server)
+
+Build Servers:
+CodeBuild ->  buildspec.yml
+Jenkins CI -> Jenkinsfile
+Travis CI ->
+Circle CI
+
+Git Repo directory structure:
+src/
+	js/
+	html/
+	css/
+index.html ( served on web server )
+
+# Scenario:
+EC2 instance : install httpd ( linux httpd daemon running on 80 port )
+httpd is configured to look at /var/www/html/ -> Files kept on this path
+
+
+Runs behind a web server -> URL (www.testapp.com/ https://dev-testapps3bucket.s3.amazonaws.com/ , EC2 instance behind a webserver ( httpd, nginx , apache : /var/www/html/ )
+
+Github :
+src/
+	js/
+	html/
+	css/
+index.html
+
+Developer -> make change -> dev environment.
+QA/Testing Team -> QA environment is identical copy of prod.
+Prod environment -> live application environment ( which should have zero downtime )
+
+Change management in prod environment:
+- First changes are developed and deployed in dev environment.
+- Once changes are fine, those same changes are deployed in qa environment.
+- Once changes are approved in qa environment, these changed files are deployed in prod environment.
+
+## Consider a scenario:
+Application Code -> has to be made available on EC2 instance
+Users would be able to access it remotely
+
+Approach 1)
+- Launch EC2 and install webserver
+- Login inside the EC2 using ssh manual
+- use git clone to download code and checkout specific branch and copy on webserver path manually.
+- EC2 Role will have codecommit repo pull access on arn.
+
+Approach 2)
+- Launch EC2 and install webserver
+- Clone the repo in Local laptop 
+- Upload code from local to s3 bucket
+- Add IAM Role to EC2 instance, use aws cli on ec2 to copy code from s3 to ec2 webserver path : /var/www/html/
+
+Pros:
+- Code available on S3
+
+Cons:
+- Approach is not scalable if you have more than 50 servers.
+- If code changes are done frequently, performing the manual steps again and again is not feasible.
+- Using Local Clone will have dependency on developer doing the same
+
+Cons:
+EC2 configure ( 100 ec2 instances )
+
+--------------------------
+CodeCommit Repo:
+
+dev
+	child branch -> Build Server ( CodeBuild - checkout code ) -> Artifacts - S3 -> Deploy dev-artifacts from S3 to dev-Ec2 instances
+
+prod
+	main branch -> Build Server ( CodeBuild - checkout code ) -> Artifacts - S3 -> Deploy dev-artifacts from S3 to prod-Ec2 instances
+	main
+
+------------------
+deploy/
+	scripts/
+		ec2_create.sh
+	buildspecs/buildspec_iac_deploy.yml -> Code for IAC Creation (cloudformation)
+	buildspecs/buildspec_appdeploy.yml -> Code for CICD Application build/package and artifact creation ( app.zip )
+	templates/
+		ec2_elb_asg_resources.yml
+		iam_roles_resources.yml
+		rds_instances.yml
+appspec.yml
+------------------
+dev -> feature or develop branch
+qa -> develop
+prod -> main/master
+----------------------
+dev-EC2 instance : 100.98.45.12
+httpd -> Running : DocumentRoot : /var/www/html/
+
+Browser : http://100.98.45.12/
+
+www.amazonprimevideo.com
+Movies/MI3.mp4
+
+S3 Bucket : amazoneprimevideos/Movies/MI3.mp4
+https://amazoneprimevideos.us-east-1.amazonaws.com/Movies/MI3.mp4
+GET request
+
+Not to be used:
+git clone on ec2 instance - invalid
+local copy of git | scp to ec2 web server path - branching -> invalid
+
+IAC Automation : Infrastructure Creation Automation : CF, scripts and dev/qa/prod
+	CodeBuild Project for CF deployment
+
+CICD Automation :
+	CodeBuild -> CodeDeploy(on ec2 instance) -> Application Code changes
+
+IAC Pipeline:
+Source Stage > Build Stage
+
+CICD Pipeline:
+Source Stage > Build Stage > Deploy Stage
+Source Stage -> codecommit/github (reponame, branch)
+Build Stage -> CodeBuild (Project)
+Deploy Stage -> CodeDeploy (CodeDeploy Application Name, Deployment Group)
+html
+js
+
+npm
+node modules:
+
+code: build , developers : import modules to run the code -> server -> accessible
+
+Developers:
+- local environment setup:
+	IDE
+	Packages local laptop , run the code by creating local server
+	localhost:80
+
+	http://dev-app-code.com
+
+Codecommit -> CodeBuild (code pull , package creation ) -> CodeDeploy
+
+git -> s3(versioned) package
+
+dev instances:
+52.66.116.117
+65.0.7.175
+
+Prod Instances:
+15.207.20.85
+65.0.73.106
+
+In-place deployment ( Same servers, new versions of Code to be deployed )
+v2 set of files.
+EC2-A
+	- v1
+	- v2
+EC2-B
+	- v1
+	- v2
+EC2-C
+	- v1
+	- v2
+EC2-D
+	- v1
+	- v2
+
+Blue-green deployment ( Different Servers created with new version of code )
+EC2-A
+	- v1
+EC2-B
+	- v1
+EC2-C
+	- v1
+EC2-D
+	- v1
+	
+EC2-AA
+	- v2
+EC2-BB
+	- v2
+EC2-CC
+	- v2
+EC2-DD
+	- v2
+
+
+master
+c1
+c234
+
+develop
+c1
+c2
+c3
+c4
+
+master
+
+develop
+
+f1 - sanket
+f2 - nilesh
+f2-bugfix
+
+develop  << f1 => delete the feature branch once code is merged into develop
+develop  << f2 => delete the feature branch once code is merged into develop
+develop  << f2-bugfix => delete the feature branch once code is merged into develop
+
+master << develop
+
+application file:
+index.html : codecommit
+
+build env : index.html
+- change some config content or any code in application
+
+Troubleshooting
+https://docs.aws.amazon.com/codedeploy/latest/userguide/troubleshooting-deployments.html#troubleshooting-same-files-different-app-name
+
+=============================
+Hello,
+The following Approval action is waiting for your response:
+--Pipeline Details--
+
+Pipeline name: dev-ec2-pipeline
+Stage name: ManualApprovalforProdDeployment
+Action name: ProdApproval
+Region: ap-south-1
+
+--Approval Details--
+
+Approve or reject: https://console.aws.amazon.com/codesuite/codepipeline/pipelines/dev-ec2-pipeline/view?region=ap-south-1#/ManualApprovalfor
+
+Codepipeline:
+	Source
+	build
+	DeploytoDev
+
+sdlc automation
+IAM Roles Stack for Codebuild, CodeDeploy, CodePipeline
+
+CodeDeploy:
+	dev-application -> dev-deployment-group
+	prod-application -> prod-deployment-group
+Resources:
+	CodePipelineIAMRole:
+		AssumeRolePolicyDocument:
+			codepipeline.amazonaws.com
+		Policy:			
+			- statement
+				Resource: !Sub 'arn::codedeploy/dev-*'
+		
+	CodebuildProjectIAMRole:
+	CodeDeployIAMRole:
+	CodebuildProject : source : build environment
+	CodeDeploy Application with Deployment
+
+	CodePipeline:
+		RoleArn: !Ref CodePipelineIAMRole
+		Stage:
+			- Source
+			- Build
+				!Ref CodebuildProject
+			- Deploy
+				!Ref CodeDeploy
+				
+Create : Build Project: 
+	Source : CodeCommit repo
+	branch : develop
+	image : ubuntu 
+	
+Run : Build Project: 
+	Source : CodeCommit repo
+	branch : develop
+	image : ubuntu 
+		checkout source code
+		
+Creating a CodeDeploy Application:
+		Creating a CodeDeploy Deployment Group : (Tags instances)
+		
+Create Deployment: Executing your deployment
+	Source : code zip file(S3 URL)
+	
+- Manual Deployment :
+	S3 URL : Revision Details
+	
+- Pipeline Deployment :
+	S3 URL : Revision Details
+	
+Continuous DeploymentL: Review Process using PR
+Multiple Pipeline for multiple environments : 
+	dev-ec2-codedeployment-pipeline - develop
+	prod-ec2-codedeployment-pipeline - master
+	
+Single Pipeline with single artifact	
+(Codecommit > Codebuild > CodeDeploy(Dev) > Manual Approval > CodeDeploy(Prod)) - master
+Continuous Delivery or Continuous
